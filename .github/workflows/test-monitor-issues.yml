@@ -11,7 +11,7 @@ on:
     - cron: "0 0 * * *"  # Runs once a day at midnight
 
 jobs:
-  workflow_call:
+  workflow_call_1:
     uses: reshmifrog/.github/actions/monitor-issues@feature/monitor-issues-reusable
     with:
       repo-token: ${{ secrets.REPO_TOKEN }}
