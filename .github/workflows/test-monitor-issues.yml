@@ -1,0 +1,18 @@
+name: Test Monitor Issues
+
+on:
+  workflow_dispatch:
+    inputs:
+      operations-per-run:
+        description: 'Number of operations per run'
+        required: false
+        default: '30'
+  schedule:
+    - cron: "0 0 * * *"  # Runs once a day at midnight
+
+jobs:
+  monitor-issues:
+    uses: ./.github/actions/monitor-issues/monitor-issues.yml
+    with:
+      repo-token: ${{ secrets.GITHUB_TOKEN }}
+      operations-per-run: 10
