@@ -12,7 +12,7 @@ on:
 
 jobs:
   workflow_call:
-    uses: ./.github/actions/monitor-issues/monitor-issues.yml
+    uses: ./.github/actions/monitor-issues@a197af79b89bf5186b2b3304dd09bf844083e897
     with:
       repo-token: ${{ secrets.GITHUB_TOKEN }}
       operations-per-run: 10
