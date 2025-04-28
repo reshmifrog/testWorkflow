@@ -12,7 +12,7 @@ on:
 
 jobs:
   monitor-issues:
-    uses: ./.github/actions/monitor-issues/monitor-issues.yml
+    uses: ./.github/actions/monitor-issues/monitor-issues.yml  # This is the correct usage
     with:
       repo-token: ${{ secrets.GITHUB_TOKEN }}
       operations-per-run: 10
