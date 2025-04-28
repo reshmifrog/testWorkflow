@@ -8,7 +8,7 @@ on:
         required: false
         default: '30'
   schedule:
-    - cron: "0 0 * * *"  # Runs once a day at midnight
+    - cron: "0 0 * * *"  # Runs once a day at midnigh
 
 jobs:
   workflow_call_1:
