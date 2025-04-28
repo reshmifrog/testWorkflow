@@ -11,8 +11,8 @@ on:
     - cron: "0 0 * * *"  # Runs once a day at midnight
 
 jobs:
-  monitor-issues:
-    uses: ./.github/actions/monitor-issues/monitor-issues.yml  # This is the correct usage
+  workflow_call:
+    uses: ./.github/actions/monitor-issues/monitor-issues.yml
     with:
       repo-token: ${{ secrets.GITHUB_TOKEN }}
       operations-per-run: 10
