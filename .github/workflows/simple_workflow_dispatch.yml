@@ -1,3 +1,0 @@
-name: Simple Workflow Dispatch
-on:
-  workflow_dispatch:
