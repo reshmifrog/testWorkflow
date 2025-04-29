@@ -44,7 +44,7 @@ runs:
         GITHUB_TOKEN: ${{ inputs.github-token }}
         STALE_ISSUE_AGE: ${{ inputs.stale-issue-age }}
         CLOSE_MESSAGE: ${{ inputs.close-message }}
-        EXEMPT_ISSUE_LABELS: ${{ inputs.exempt-labels }}
+        EXEMPT_ISSUE_LABELS: ${{ inputs.exempt-issue-labels }}
         STALE_ISSUE_LABEL: ${{ inputs.stale-issue-label }}
         DAYS_BEFORE_CLOSE: ${{ inputs.days-before-close }}
         ASCENDING: ${{ inputs.ascending }}
@@ -191,6 +191,6 @@ runs:
           fi
           page=$((page + 1))
         done
-        echo "::set-output name=closed-count::$closed_count"
+        echo "closed-count=$closed_count" >> $GITHUB_OUTPUT
         log_info "Stale issue check complete. Closed $closed_count issues."
 
