@@ -18,10 +18,10 @@ jobs:
       - uses: ./.github/actions/close-stale-issues@v1 # Use a specific version tag for stability
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          stale-issue-age: 180
+          stale-issue-age: 0
           close-message: 'This issue has been marked as stale due to 6 months of inactivity. As part of our effort to address every issue properly, please feel free to remove the stale label or keep this issue active by leaving a comment. Otherwise, it will be closed in 7 days.'
           stale-issue-label: 'stale'
           exempt-issue-labels: 'feature request,question'
-          days-before-close: 7
+          days-before-close: 0
           ascending: true
           operations-per-run: ${{ github.event.inputs.operations-per-run || 30 }}
