@@ -1,0 +1,196 @@
+name: 'Close Stale Issues'
+description: 'Closes stale issues in a repository'
+inputs:
+  github-token:
+    description: 'The GitHub token to use for API requests'
+    required: true
+  stale-issue-age:
+    description: 'Number of days of inactivity before marking an issue as stale'
+    required: true
+    default: '180'
+  close-message:
+    description: 'Message to post when closing a stale issue'
+    required: true
+    default: 'This issue was closed due to 7 days of inactivity after being marked as stale. Feel free to reopen it if it remains relevant.'
+  stale-issue-label:
+    description: 'Label to apply to stale issues'
+    required: true
+    default: 'stale'
+  exempt-issue-labels:
+    description: 'Comma-separated list of labels to exempt from staleness check'
+    required: false
+    default: 'feature request,question'
+  days-before-close:
+    description: 'Number of days after being marked stale before closing'
+    required: true
+    default: '7'
+  ascending:
+    description: 'Whether to process issues in ascending order of creation date.'
+    required: false
+    default: 'true'
+  operations-per-run:
+    description: 'Maximum number of operations per run.'
+    required: false
+    default: '30'
+outputs:
+  closed-count:
+    description: 'The number of issues closed'
+runs:
+  using: 'composite'
+  steps:
+    - name: Close Stale Issues
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        STALE_ISSUE_AGE: ${{ inputs.stale-issue-age }}
+        CLOSE_MESSAGE: ${{ inputs.close-message }}
+        EXEMPT_ISSUE_LABELS: ${{ inputs.exempt-issue-labels }}
+        STALE_ISSUE_LABEL: ${{ inputs.stale-issue-label }}
+        DAYS_BEFORE_CLOSE: ${{ inputs.days-before-close }}
+        ASCENDING: ${{ inputs.ascending }}
+        OPERATIONS_PER_RUN: ${{ inputs.operations-per-run }}
+      run: |
+        # Script to close stale issues
+        set -euo pipefail
+        # Default values
+        stale_issue_age=$STALE_ISSUE_AGE
+        close_message="$CLOSE_MESSAGE"
+        exempt_labels="$EXEMPT_ISSUE_LABELS"
+        github_token="$GITHUB_TOKEN"
+        stale_issue_label="$STALE_ISSUE_LABEL"
+        days_before_close=$DAYS_BEFORE_CLOSE
+        ascending=$ASCENDING
+        operations_per_run=$OPERATIONS_PER_RUN
+        closed_count=0
+        # Function to log messages
+        log_info() {
+          echo "[INFO] $1"
+        }
+        log_error() {
+          echo "[ERROR] $1" >&2
+        }
+        if [[ -z "$github_token" ]]; then
+          log_error "GitHub token is required."
+          exit 1
+        fi
+        if [[ -z "$stale_issue_age" || ! [[ "$stale_issue_age" =~ ^[0-9]+$ ]] ]]; then
+          log_error "Stale issue age must be a positive number."
+          exit 1
+        fi
+        if [[ -z "$days_before_close" || ! [[ "$days_before_close" =~ ^[0-9]+$ ]] ]]; then
+          log_error "Days before close must be a positive number."
+          exit 1
+        fi
+        if [[ -z "$operations_per_run" || ! [[ "$operations_per_run" =~ ^[0-9]+$ ]] ]]; then
+          log_error "Operations per run must be a positive number."
+          exit 1
+        fi
+        # GitHub API endpoint
+        api_url="https://api.github.com/repos/${GITHUB_REPOSITORY}/issues"
+        # Function to fetch issues
+        fetch_issues() {
+          page="$1"
+          sort_order="updated"
+          if [[ "$ascending" == "true" ]]; then
+            sort_direction="asc"
+          else
+            sort_direction="desc"
+          fi
+          curl -sS -H "Authorization: token $github_token" \
+               -H "Accept: application/vnd.github.v3+json" \
+               "$api_url?state=open&sort=$sort_order&direction=$sort_direction&per_page=100&page=$page" |
+            jq -r '.[] | { number: .number, updated_at: .updated_at, labels: [.labels[].name] }' |
+            while IFS= read -r issue_data; do
+              echo "$issue_data"
+            done
+        }
+        # Function to check if an issue is stale
+        is_stale() {
+          local issue_updated_at="$1"
+          local issue_number="$2"
+          # Get the current date in seconds since the epoch
+          current_time=$(date +%s)
+          # Convert the issue's updated_at time to seconds since the epoch
+          issue_updated_time=$(date -d "$issue_updated_at" +%s)
+          # Calculate the difference in seconds
+          diff=$((current_time - issue_updated_time))
+          # Calculate the staleness threshold in seconds
+          stale_threshold=$((stale_issue_age * 24 * 60 * 60))
+          if ((diff > stale_threshold)); then
+            log_info "Issue #$issue_number is stale (updated at: $issue_updated_at, stale age: $stale_issue_age days)."
+            return 0 # Return 0 if stale
+          else
+            log_info "Issue #$issue_number is not stale (updated at: $issue_updated_at, stale age: $stale_issue_age days)."
+            return 1 # Return 1 if not stale
+          fi
+        }
+        # Function to check if an issue is exempt
+        is_exempt() {
+          local issue_labels=("$@")
+          local exempt_labels_list=($(echo "$exempt_labels" | tr ',' ' '))
+          if [[ -n "$exempt_labels" ]]; then
+            for exempt_label in "${exempt_labels_list[@]}"; do
+              for issue_label in "${issue_labels[@]}"; do
+                if [[ "$issue_label" == "$exempt_label" ]]; then
+                  log_info "Issue #$issue_number is exempt from staleness check due to label: $issue_label"
+                  return 0 # Return 0 if exempt
+                fi
+              done
+            done
+          fi
+          return 1 # Return 1 if not exempt
+        }
+        # Function to close an issue
+        close_issue() {
+          local issue_number="$1"
+          local close_message="$2"
+          log_info "Closing issue #$issue_number with message: '$close_message'"
+          curl -sS -X POST \
+            -H "Authorization: token $github_token" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "$api_url/$issue_number" \
+            -d "{\"state\": \"closed\", \"body\": \"$close_message\"}"
+          if [ $? -eq 0 ]; then
+            ((closed_count++))
+             log_info "Issue #$issue_number closed successfully."
+          else
+            log_error "Failed to close issue #$issue_number"
+          fi
+        }
+        # Main script logic
+        log_info "Checking for stale issues in repository: $GITHUB_REPOSITORY"
+        page=1
+        processed_count=0
+        while true; do
+          issues=$(fetch_issues "$page")
+          if [[ -z "$issues" ]]; then
+            log_info "No more issues to process."
+            break
+          fi
+          # Process each issue
+          IFS=$'\n' read -rd '' -a issue_array <<< "$issues"
+          for issue_data in "${issue_array[@]}"; do
+            # Parse the JSON data
+            issue_number=$(echo "$issue_data" | jq -r '.number')
+            updated_at=$(echo "$issue_data" | jq -r '.updated_at')
+            issue_labels=($(echo "$issue_data" | jq -r '.labels[]'))
+            if is_exempt "${issue_labels[@]}"; then
+              continue
+            fi
+            if is_stale "$updated_at" "$issue_number"; then
+              close_issue "$issue_number" "$close_message"
+            fi
+            ((processed_count++))
+            if [[ "$processed_count" -ge "$operations_per_run" ]]; then
+              log_info "Reached the maximum number of operations ($operations_per_run) for this run."
+              break
+            fi
+          done
+          if [[ "$processed_count" -ge "$operations_per_run" ]]; then
+             break
+          fi
+          page=$((page + 1))
+        done
+        echo "closed-count=$closed_count" >> $GITHUB_OUTPUT
+        log_info "Stale issue check complete. Closed $closed_count issues."
+
