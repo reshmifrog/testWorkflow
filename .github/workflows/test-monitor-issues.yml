@@ -1,18 +1,27 @@
-name: Test Monitor Issues
-
+name: 'Close Stale Issues'
 on:
-  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * *' # Run daily at midnight UTC
+  workflow_dispatch: # Allows manual triggering
     inputs:
       operations-per-run:
-        description: 'Number of operations per run'
+        description: 'Maximum number of operations per run'
         required: false
         default: '30'
-  schedule:
-    - cron: "0 0 * * *"  # Runs once a day at midnigh
-
 jobs:
-  workflow_call_1:
-    uses: reshmifrog/.github/actions/monitor-issues@feature/monitor-issues-reusable
-    with:
-      repo-token: ${{ secrets.REPO_TOKEN }}
-      operations-per-run: 30
+  close-stale:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/close-stale-issues@v1 # Use a specific version tag for stability
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          stale-issue-age: 180
+          close-message: 'This issue has been marked as stale due to 6 months of inactivity. As part of our effort to address every issue properly, please feel free to remove the stale label or keep this issue active by leaving a comment. Otherwise, it will be closed in 7 days.'
+          stale-issue-label: 'stale'
+          exempt-issue-labels: 'feature request,question'
+          days-before-close: 7
+          ascending: true
+          operations-per-run: ${{ github.event.inputs.operations-per-run || 30 }}
