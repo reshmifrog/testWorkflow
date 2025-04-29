@@ -1,0 +1,9 @@
+name: Test Manual Trigger Button
+on:
+  workflow_dispatch: # Only this trigger
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Button test successful!"
